@@ -1,0 +1,7 @@
+{
+  "name": "Cute Crane Catcher",
+  "description": "An adorable 8-bit anime-style crane game. Catch lucky toys and items on a 6x6 grid to achieve the highest score and earn a cute downloadable certificate!",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

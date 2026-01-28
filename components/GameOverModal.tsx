@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import html2canvas from 'html2canvas';
 
 // Sub-component for the photo booth feature
 const PhotoBooth: React.FC<{ onPhotoTaken: (dataUrl: string) => void; onBack: () => void }> = ({ onPhotoTaken, onBack }) => {
@@ -118,19 +119,39 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ score, onRestart }
   const [submitting, setSubmitting] = useState(false);
   const certificateRef = useRef<HTMLDivElement>(null);
 
-  const downloadCertificate = useCallback(async () => {
+  const [certificateImage, setCertificateImage] = useState<string | null>(null);
+  const [generatingCertificate, setGeneratingCertificate] = useState(false);
+
+  const generateCertificate = useCallback(async () => {
     if (certificateRef.current) {
+      setGeneratingCertificate(true);
       try {
-        const canvas = await (window as any).html2canvas(certificateRef.current, { scale: 2 });
-        const link = document.createElement('a');
-        link.download = `cute-crane-catcher-certificate-${score}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        // Temporarily move on-screen for capture
+        const el = certificateRef.current;
+        el.style.position = 'fixed';
+        el.style.top = '0';
+        el.style.left = '0';
+        el.style.zIndex = '-1';
+
+        // Small delay to let browser render
+        await new Promise(r => setTimeout(r, 100));
+
+        const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+
+        // Move back off-screen
+        el.style.top = '-9999px';
+        el.style.left = '-9999px';
+        el.style.zIndex = '';
+
+        setCertificateImage(canvas.toDataURL('image/png'));
+        setView('certificate');
       } catch (error) {
-        console.error('Failed to download certificate:', error);
+        console.error('Failed to generate certificate:', error);
+      } finally {
+        setGeneratingCertificate(false);
       }
     }
-  }, [score]);
+  }, []);
   
   const handlePhotoTaken = (dataUrl: string) => {
       setPhotoDataUrl(dataUrl);
@@ -201,24 +222,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ score, onRestart }
         case 'photobooth':
             return <PhotoBooth onPhotoTaken={handlePhotoTaken} onBack={() => setView('summary')} />;
         case 'certificate':
-            return (
-                <div className="flex flex-col items-center">
-                    <h3 className="text-3xl text-pink-500 mb-4">Your Certificate!</h3>
-                    {photoDataUrl && <img src={photoDataUrl} alt="Your snapshot" className="w-48 h-48 rounded-lg border-4 border-pink-300 object-cover mb-4" />}
-                    <p className="text-pink-800 mb-4">Looking good! Download your certificate now.</p>
-                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <button onClick={downloadCertificate} className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-6 py-3 rounded-md text-lg pixel-shadow">
-                           DOWNLOAD
-                        </button>
-                        <button onClick={() => setView('photobooth')} className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-3 rounded-md text-lg pixel-shadow">
-                           RETAKE PHOTO
-                        </button>
-                         <button onClick={() => { setView('summary'); setPhotoDataUrl(null); }} className="bg-pink-300 hover:bg-pink-400 text-pink-800 px-6 py-3 rounded-md text-lg pixel-shadow">
-                           CANCEL
-                        </button>
-                    </div>
-                </div>
-            );
+            return null; // Certificate view is handled separately as fullscreen
         case 'summary':
         default:
             return (
@@ -230,7 +234,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ score, onRestart }
                     <button onClick={onRestart} className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-md text-lg pixel-shadow">
                         PLAY AGAIN
                     </button>
-                    <button onClick={() => { setPhotoDataUrl(null); downloadCertificate(); }} className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-6 py-3 rounded-md text-lg pixel-shadow">
+                    <button onClick={() => setView('certificate')} className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-6 py-3 rounded-md text-lg pixel-shadow">
                         GET CERTIFICATE
                     </button>
                     <button onClick={() => setView('photobooth')} className="bg-pink-400 hover:bg-pink-500 text-white px-6 py-3 rounded-md text-lg pixel-shadow">
@@ -242,6 +246,35 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({ score, onRestart }
     }
   }
 
+
+  // Fullscreen certificate view - show certificate directly
+  if (view === 'certificate') {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 p-2 overflow-auto">
+        <p className="text-white mb-2 text-sm">Take a screenshot to save your certificate!</p>
+        <div className="w-full max-w-3xl bg-gradient-to-br from-yellow-100 to-pink-200 p-4 sm:p-8 border-8 border-double border-pink-400 flex flex-col items-center justify-around text-gray-800 rounded-lg" style={{minHeight: '400px'}}>
+          <div className="text-3xl sm:text-5xl text-shadow-cute text-pink-500">Congratulations!</div>
+          <div className="text-center my-4">
+            <div className="text-4xl sm:text-6xl font-bold mb-4 text-pink-600">Cute Crane Catcher</div>
+            <div className="text-lg sm:text-xl mb-2">This certificate is awarded to</div>
+            <div className="text-2xl sm:text-4xl border-b-2 border-dashed border-gray-600 px-4 sm:px-8 pb-2 mb-4">A SUPER PLAYER</div>
+            <div className="text-xl sm:text-2xl mb-2">For achieving a high score of</div>
+            <div className="text-5xl sm:text-7xl font-bold text-yellow-500" style={{textShadow: '3px 3px 0px #C55C89'}}>{score}</div>
+          </div>
+          <div className="text-sm sm:text-lg flex items-center justify-between w-full px-4">
+            <span>Date: {new Date().toLocaleDateString()}</span>
+            <span>💖⭐✨🎀🍭</span>
+          </div>
+        </div>
+        <button
+          onClick={onRestart}
+          className="mt-4 bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-md text-lg pixel-shadow"
+        >
+          PLAY AGAIN
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">

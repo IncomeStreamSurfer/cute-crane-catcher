@@ -269,28 +269,46 @@ const App: React.FC = () => {
     };
   }, [gameStatus, gameLoop]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const updateCranePosition = (clientX: number, clientY: number) => {
     if (!gridRef.current || gameStatus !== GameStatus.Playing || isDropping) return;
     const rect = gridRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
     const cellPixelWidth = rect.width / GRID_SIZE;
     const cellPixelHeight = rect.height / GRID_SIZE;
-    
+
     const gridX = Math.floor(x / cellPixelWidth);
     const gridY = Math.floor(y / cellPixelHeight);
-    
+
     if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
         if (gridX !== cranePos.x || gridY !== cranePos.y) {
             setCranePos({ x: gridX, y: gridY });
         }
     }
   };
-  
-  const handleGridClick = () => {
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    updateCranePosition(e.clientX, e.clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      updateCranePosition(touch.clientX, touch.clientY);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      updateCranePosition(touch.clientX, touch.clientY);
+    }
+  };
+
+  const dropCrane = () => {
     if (gameStatus !== GameStatus.Playing || isDropping) return;
-    
+
     setIsDropping(true);
     setTimeout(() => {
       const caughtItem = grid[cranePos.y][cranePos.x];
@@ -310,6 +328,15 @@ const App: React.FC = () => {
     }, 300); // 300ms drop animation
   };
 
+  const handleGridClick = () => {
+    dropCrane();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Prevent mouse event from also firing
+    dropCrane();
+  };
+
 
   const cellWidth = 'min(12vw, 64px)';
   const gridWidth = `calc(${GRID_SIZE} * ${cellWidth} + ${GRID_SIZE - 1} * 4px)`;
@@ -326,8 +353,8 @@ const App: React.FC = () => {
                     START GAME
                 </button>
                  <div className="mt-12 text-lg text-pink-800 space-y-2">
-                    <p>Move Mouse to Aim</p>
-                    <p>Click to Drop Crane</p>
+                    <p>Mouse or Touch to Aim</p>
+                    <p>Click/Tap to Grab!</p>
                 </div>
             </div>
             <Leaderboard />
@@ -364,11 +391,14 @@ const App: React.FC = () => {
             <div className="flex-grow">
                 <h1 className="text-xl sm:text-3xl text-white text-shadow-cute mb-4 text-center">Quick Grab</h1>
                 {/* Game Area */}
-                <div 
+                <div
                 ref={gridRef}
                 onMouseMove={handleMouseMove}
                 onClick={handleGridClick}
-                className="relative bg-black/20 rounded-md p-1 cursor-crosshair overflow-hidden" 
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="relative bg-black/20 rounded-md p-1 cursor-crosshair overflow-hidden touch-none"
                 style={{ width: gridWidth, margin: '0 auto'}}
                 >
                     <div className={`grid grid-cols-6 gap-1`}>
@@ -422,7 +452,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="mt-4 text-center text-pink-800/80 text-xs sm:text-sm">
-                <p>Move Mouse to Aim & Click to Grab!</p>
+                <p>Drag to Aim & Tap to Grab!</p>
             </div>
         </div>
       </div>
